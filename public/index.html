@@ -1,63 +1,385 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Faculty - Attendance Portal</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Attendance System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 p-8">
-  <div class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
-    <h1 class="text-2xl font-bold mb-4 text-blue-600">Faculty Attendance Portal</h1>
-    
-    <div class="mb-4 grid grid-cols-2 gap-4">
-      <div>
-        <label class="block font-medium">Subject:</label>
-        <input type="text" id="subject" value="DevOps" class="w-full border p-2 rounded">
-      </div>
-      <div>
-        <label class="block font-medium">Date:</label>
-        <input type="date" id="date" class="w-full border p-2 rounded">
-      </div>
-    </div>
+<body class="bg-slate-100 min-h-screen font-sans text-slate-800">
 
-    <h2 class="text-xl font-semibold mb-2">Students List</h2>
-    <div id="student-list" class="space-y-2 mb-4"></div>
-
-    <a href="student.html" class="text-blue-500 underline text-sm">Go to Student Portal →</a>
-  </div>
-
-  <script>
-    document.getElementById('date').valueAsDate = new Date();
-
-    async function loadStudents() {
-      const res = await fetch('/api/students');
-      const students = await res.json();
-      const container = document.getElementById('student-list');
-      container.innerHTML = students.map(s => `
-        <div class="flex justify-between items-center border p-2 rounded">
-          <span><b>${s.roll_number}</b> - ${s.name}</span>
-          <div>
-            <button onclick="mark('${s.id}', 'Present')" class="bg-green-500 text-white px-3 py-1 rounded mr-1">Present</button>
-            <button onclick="mark('${s.id}', 'Absent')" class="bg-red-500 text-white px-3 py-1 rounded">Absent</button>
-          </div>
+    <nav class="bg-indigo-700 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fa-solid fa-graduation-cap text-2xl text-indigo-200"></i>
+                    <span class="font-bold text-xl tracking-wide">Attendance System</span>
+                    <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-1 rounded-full font-semibold">CSE-AIML</span>
+                </div>
+                <div class="flex bg-indigo-900/60 p-1 rounded-xl border border-indigo-500/30 space-x-1">
+                    <button id="tab-faculty" onclick="switchTab('faculty')" class="px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-white text-indigo-700 shadow-md">
+                        <i class="fa-solid fa-chalkboard-user mr-2"></i>Faculty Panel
+                    </button>
+                    <button id="tab-student" onclick="switchTab('student')" class="px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-indigo-200 hover:text-white">
+                        <i class="fa-solid fa-user-graduate mr-2"></i>Student Portal
+                    </button>
+                </div>
+            </div>
         </div>
-      `).join('');
-    }
+    </nav>
 
-    async function mark(studentId, status) {
-      const subject = document.getElementById('subject').value;
-      const date = document.getElementById('date').value;
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      const res = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: studentId, subject, date, status })
-      });
-      const data = await res.json();
-      alert(data.message);
-    }
+        <!-- FACULTY PANEL VIEW -->
+        <div id="faculty-section" class="space-y-6">
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-100 text-indigo-600 rounded-lg"><i class="fa-solid fa-users text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Filtered Students</p>
+                        <h3 class="text-2xl font-bold text-slate-800" id="fac-total-students">60</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-100 text-indigo-600 rounded-lg"><i class="fa-solid fa-layer-group text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Divisions</p>
+                        <h3 class="text-2xl font-bold text-slate-800">3 (A, B, C)</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-amber-100 text-amber-600 rounded-lg"><i class="fa-solid fa-book-open text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Active Subjects</p>
+                        <h3 class="text-2xl font-bold text-slate-800">5 (Theory)</h3>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex items-center space-x-4">
+                    <div class="p-3 bg-rose-100 text-rose-600 rounded-lg"><i class="fa-solid fa-triangle-exclamation text-2xl"></i></div>
+                    <div>
+                        <p class="text-sm text-slate-500 font-medium">Low Attendance (&lt;75%)</p>
+                        <h3 class="text-2xl font-bold text-rose-600" id="fac-low-count">0</h3>
+                    </div>
+                </div>
+            </div>
 
-    loadStudents();
-  </script>
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-6 border-b border-slate-100 bg-slate-50 flex flex-wrap justify-between items-center gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Mark / Update Attendance</h2>
+                        <p class="text-sm text-slate-500">Filter Division & Subject to record presence.</p>
+                    </div>
+
+                    <div class="flex items-center space-x-3 flex-wrap gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Division</label>
+                            <select id="fac-div-select" onchange="onDivisionChange()" class="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none">
+                                <option value="ALL">All Divisions (A, B, C)</option>
+                                <option value="A">Division A</option>
+                                <option value="B">Division B</option>
+                                <option value="C">Division C</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Subject</label>
+                            <select id="fac-sub-select" class="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 focus:ring-2 focus:ring-indigo-500 outline-none">
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Select Date</label>
+                            <input type="date" id="fac-date-input" value="2026-09-30" class="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+
+                        <div class="pt-5">
+                            <button onclick="markAllPresent()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition shadow-sm flex items-center gap-2">
+                                <i class="fa-solid fa-check-double"></i> Mark All Present
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 uppercase text-xs font-bold border-b border-slate-200">
+                                <th class="py-4 px-6">Roll Number</th>
+                                <th class="py-4 px-6">Student Name</th>
+                                <th class="py-4 px-6">Division</th>
+                                <th class="py-4 px-6 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fac-student-table" class="divide-y divide-slate-100 text-sm">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-lg font-bold text-rose-700 flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-600"></i> Students Below 75% Attendance Criteria
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-rose-50 text-rose-700 uppercase text-xs font-bold border-b border-rose-200">
+                                <th class="py-3 px-4">Roll No</th>
+                                <th class="py-3 px-4">Student Name</th>
+                                <th class="py-3 px-4">Division</th>
+                                <th class="py-3 px-4 text-right">Overall Attendance %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="fac-low-table" class="divide-y divide-slate-100">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- STUDENT PORTAL VIEW -->
+        <div id="student-section" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Student Portal Dashboard</h2>
+                    <p class="text-sm text-slate-500">Enter Roll No (e.g. CS101 - CS160) to check attendance.</p>
+                </div>
+                <div class="flex gap-2 w-full md:w-auto">
+                    <input type="text" id="stud-roll-input" value="CS101" placeholder="Enter Roll No" class="border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800 font-bold uppercase">
+                    <button onclick="loadStudentDashboard()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 py-2 rounded-lg transition shadow-md">
+                        View Dashboard
+                    </button>
+                </div>
+            </div>
+
+            <div id="stud-profile-card" class="bg-gradient-to-r from-indigo-700 to-indigo-900 text-white rounded-xl p-6 shadow-md flex flex-wrap justify-between items-center gap-4">
+                <div>
+                    <h3 class="text-2xl font-bold" id="stud-name-display">Loading...</h3>
+                    <p class="text-indigo-200 text-sm font-medium mt-1"><span id="stud-roll-display">--</span> • Division <span id="stud-div-display">--</span> • Semester IV</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur-md px-6 py-3 rounded-lg border border-white/20 text-center">
+                    <p class="text-xs uppercase tracking-wider text-indigo-200 font-semibold">Overall September Attendance</p>
+                    <p class="text-3xl font-black text-emerald-300" id="stud-overall-pct">--%</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-book-open text-indigo-600"></i> September Subject Attendance Breakdown (5 Theory)
+                </h3>
+                <div id="stud-subject-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+                    <h3 class="text-lg font-bold text-slate-800">Check Date-Wise Daily Attendance</h3>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-500 uppercase">Select Date:</label>
+                        <input type="date" id="stud-date-picker" onchange="loadStudentDashboard()" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <button onclick="clearStudentDateFilter()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg">Show All Dates</button>
+                    </div>
+                </div>
+
+                <div class="overflow-y-auto max-h-80 border border-slate-100 rounded-lg">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-slate-50 sticky top-0 text-slate-500 uppercase text-xs">
+                            <tr>
+                                <th class="py-3 px-4">Date</th>
+                                <th class="py-3 px-4">Subject</th>
+                                <th class="py-3 px-4 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="stud-history-table" class="divide-y divide-slate-100">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        function switchTab(role) {
+            const facultySec = document.getElementById('faculty-section');
+            const studentSec = document.getElementById('student-section');
+            const tabFaculty = document.getElementById('tab-faculty');
+            const tabStudent = document.getElementById('tab-student');
+
+            if (role === 'faculty') {
+                facultySec.classList.remove('hidden');
+                studentSec.classList.add('hidden');
+                tabFaculty.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-white text-indigo-700 shadow-md";
+                tabStudent.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-indigo-200 hover:text-white";
+            } else {
+                facultySec.classList.add('hidden');
+                studentSec.classList.remove('hidden');
+                tabStudent.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-white text-indigo-700 shadow-md";
+                tabFaculty.className = "px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-indigo-200 hover:text-white";
+                loadStudentDashboard();
+            }
+        }
+
+        async function initFaculty() {
+            try {
+                const subRes = await fetch('/api/subjects');
+                const subjects = await subRes.json();
+
+                const subSelect = document.getElementById('fac-sub-select');
+                subSelect.innerHTML = subjects.map(s => `<option value="${s.id}">${s.name} (${s.code})</option>`).join('');
+
+                onDivisionChange();
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function onDivisionChange() {
+            fetchFacultyStudents();
+            fetchFacultyStats();
+        }
+
+        async function fetchFacultyStudents() {
+            const div = document.getElementById('fac-div-select').value;
+            const res = await fetch(`/api/students?division=${div}`);
+            const students = await res.json();
+
+            const table = document.getElementById('fac-student-table');
+            table.innerHTML = students.map(s => `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="py-4 px-6 font-bold text-indigo-600">${s.roll_number}</td>
+                    <td class="py-4 px-6 font-medium text-slate-800">${s.name}</td>
+                    <td class="py-4 px-6 font-bold text-slate-600">Div ${s.division}</td>
+                    <td class="py-4 px-6 text-right space-x-2">
+                        <button onclick="markOne(${s.id}, 'Present')" class="bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shadow-sm">Present</button>
+                        <button onclick="markOne(${s.id}, 'Absent')" class="bg-rose-500 hover:bg-rose-600 text-white font-semibold text-xs px-4 py-2 rounded-lg transition shadow-sm">Absent</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function markOne(studentId, status) {
+            const subjectId = document.getElementById('fac-sub-select').value;
+            const date = document.getElementById('fac-date-input').value;
+
+            await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: studentId, subject_id: subjectId, date: date, status: status })
+            });
+
+            fetchFacultyStats();
+            alert(`Attendance updated to ${status} for ${date}!`);
+        }
+
+        async function markAllPresent() {
+            const div = document.getElementById('fac-div-select').value;
+            const subjectId = document.getElementById('fac-sub-select').value;
+            const date = document.getElementById('fac-date-input').value;
+
+            const res = await fetch(`/api/students?division=${div}`);
+            const students = await res.json();
+
+            for (let s of students) {
+                await fetch('/api/attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ student_id: s.id, subject_id: subjectId, date: date, status: 'Present' })
+                });
+            }
+            alert(`Marked ALL Present for ${date} in ${div === 'ALL' ? 'All Divisions' : 'Division ' + div}!`);
+            fetchFacultyStats();
+        }
+
+        async function fetchFacultyStats() {
+            const div = document.getElementById('fac-div-select').value;
+            const res = await fetch(`/api/faculty-stats?division=${div}`);
+            const data = await res.json();
+
+            document.getElementById('fac-total-students').innerText = data.totalStudents;
+            document.getElementById('fac-low-count').innerText = data.uniqueLowCount;
+
+            const lowTable = document.getElementById('fac-low-table');
+            if (data.lowAttendanceStudents && data.lowAttendanceStudents.length > 0) {
+                lowTable.innerHTML = data.lowAttendanceStudents.map(item => `
+                    <tr class="hover:bg-rose-50/50">
+                        <td class="py-2.5 px-4 font-bold text-slate-700">${item.roll_number}</td>
+                        <td class="py-2.5 px-4 font-medium text-slate-800">${item.name}</td>
+                        <td class="py-2.5 px-4 font-bold text-slate-600">Div ${item.division}</td>
+                        <td class="py-2.5 px-4 text-right font-black text-rose-600">${item.percentage}%</td>
+                    </tr>
+                `).join('');
+            } else {
+                lowTable.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-slate-400">No students currently below threshold</td></tr>`;
+            }
+        }
+
+        async function loadStudentDashboard() {
+            const roll = document.getElementById('stud-roll-input').value.trim();
+            const selectedDate = document.getElementById('stud-date-picker').value;
+
+            let url = `/api/student-dashboard/${roll}`;
+            if (selectedDate) {
+                url += `?date=${selectedDate}`;
+            }
+
+            const res = await fetch(url);
+            if(!res.ok) return alert("Student not found!");
+
+            const data = await res.json();
+            document.getElementById('stud-name-display').innerText = data.student.name;
+            document.getElementById('stud-roll-display').innerText = data.student.roll_number;
+            document.getElementById('stud-div-display').innerText = data.student.division;
+
+            let totalCls = 0, totalPres = 0;
+            data.subjectsStats.forEach(s => {
+                totalCls += parseInt(s.total_classes || 0);
+                totalPres += parseInt(s.present_count || 0);
+            });
+
+            const overallPct = totalCls > 0 ? ((totalPres / totalCls) * 100).toFixed(1) : 0;
+            document.getElementById('stud-overall-pct').innerText = `${overallPct}%`;
+
+            const list = document.getElementById('stud-subject-list');
+            list.innerHTML = data.subjectsStats.map(sub => {
+                const pct = sub.total_classes > 0 ? ((sub.present_count / sub.total_classes) * 100).toFixed(1) : 0;
+                return `
+                    <div class="border border-slate-200 p-4 rounded-xl bg-slate-50">
+                        <div class="flex justify-between items-center text-sm font-bold mb-2">
+                            <span class="text-slate-800">${sub.subject_name}</span>
+                            <span class="${pct < 75 ? 'text-rose-600' : 'text-emerald-600'}">${pct}% (${sub.present_count}/${sub.total_classes})</span>
+                        </div>
+                        <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                            <div class="${pct < 75 ? 'bg-rose-500' : 'bg-indigo-600'} h-2.5 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const historyTable = document.getElementById('stud-history-table');
+            if (data.historyLogs.length === 0) {
+                historyTable.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-slate-400">No attendance logs found for selected date</td></tr>`;
+            } else {
+                historyTable.innerHTML = data.historyLogs.map(log => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2.5 px-4 font-semibold text-slate-600">${log.date.split('T')[0]}</td>
+                        <td class="py-2.5 px-4 font-bold text-slate-800">${log.subject_name}</td>
+                        <td class="py-2.5 px-4 text-right">
+                            <span class="text-xs font-bold px-2.5 py-1 rounded-full ${log.status === 'Present' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">${log.status}</span>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function clearStudentDateFilter() {
+            document.getElementById('stud-date-picker').value = '';
+            loadStudentDashboard();
+        }
+
+        initFaculty();
+    </script>
 </body>
 </html>

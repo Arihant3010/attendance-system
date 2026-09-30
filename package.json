@@ -1,19 +1,13 @@
 {
   "name": "attendance-system",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Attendance Management System",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node seed.js && node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.4",
-    "express": "^5.2.1",
-    "pg": "^8.23.0"
+    "express": "^4.18.2",
+    "pg": "^8.11.3"
   }
 }

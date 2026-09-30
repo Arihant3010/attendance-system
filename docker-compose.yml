@@ -3,26 +3,45 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: attendance_postgres
+    container_name: attendance_db
+    restart: always
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: secretpassword
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
       POSTGRES_DB: attendance_db
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d attendance_db"]
+      interval: 3s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: attendance_pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
 
   web:
     build: .
     container_name: attendance_web_app
+    restart: always
     ports:
       - "5000:5000"
     environment:
-      DATABASE_URL: postgres://admin:secretpassword@db:5432/attendance_db
+      DATABASE_URL: postgres://postgres:postgrespassword@db:5432/attendance_db
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
 volumes:
-  postgres_data:
+  pgdata:
