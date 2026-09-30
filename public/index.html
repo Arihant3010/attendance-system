@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Faculty - Attendance Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4 text-blue-600">Faculty Attendance Portal</h1>
+    
+    <div class="mb-4 grid grid-cols-2 gap-4">
+      <div>
+        <label class="block font-medium">Subject:</label>
+        <input type="text" id="subject" value="DevOps" class="w-full border p-2 rounded">
+      </div>
+      <div>
+        <label class="block font-medium">Date:</label>
+        <input type="date" id="date" class="w-full border p-2 rounded">
+      </div>
+    </div>
+
+    <h2 class="text-xl font-semibold mb-2">Students List</h2>
+    <div id="student-list" class="space-y-2 mb-4"></div>
+
+    <a href="student.html" class="text-blue-500 underline text-sm">Go to Student Portal →</a>
+  </div>
+
+  <script>
+    document.getElementById('date').valueAsDate = new Date();
+
+    async function loadStudents() {
+      const res = await fetch('/api/students');
+      const students = await res.json();
+      const container = document.getElementById('student-list');
+      container.innerHTML = students.map(s => `
+        <div class="flex justify-between items-center border p-2 rounded">
+          <span><b>${s.roll_number}</b> - ${s.name}</span>
+          <div>
+            <button onclick="mark('${s.id}', 'Present')" class="bg-green-500 text-white px-3 py-1 rounded mr-1">Present</button>
+            <button onclick="mark('${s.id}', 'Absent')" class="bg-red-500 text-white px-3 py-1 rounded">Absent</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function mark(studentId, status) {
+      const subject = document.getElementById('subject').value;
+      const date = document.getElementById('date').value;
+
+      const res = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, subject, date, status })
+      });
+      const data = await res.json();
+      alert(data.message);
+    }
+
+    loadStudents();
+  </script>
+</body>
+</html>

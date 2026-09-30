@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Student - Attendance Summary</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+  <div class="max-w-2xl mx-auto bg-white p-6 rounded shadow">
+    <h1 class="text-2xl font-bold mb-4 text-green-600">Student Attendance Portal</h1>
+    
+    <div class="flex gap-2 mb-6">
+      <input type="text" id="roll" placeholder="Enter Roll No (e.g. CS101)" class="border p-2 rounded w-full">
+      <button onclick="checkAttendance()" class="bg-blue-600 text-white px-4 py-2 rounded">View</button>
+    </div>
+
+    <div id="results"></div>
+    <br>
+    <a href="index.html" class="text-blue-500 underline text-sm">← Back to Faculty Portal</a>
+  </div>
+
+  <script>
+    async function checkAttendance() {
+      const roll = document.getElementById('roll').value;
+      const res = await fetch(`/api/student/${roll}`);
+      const data = await res.json();
+
+      if (!data.length || !data[0].name) {
+        document.getElementById('results').innerHTML = `<p class="text-red-500">No student found.</p>`;
+        return;
+      }
+
+      let total = 0, present = 0;
+      let logs = data.filter(d => d.subject).map(d => {
+        total++;
+        if (d.status === 'Present') present++;
+        return `<li>${d.date.split('T')[0]} | ${d.subject} : <b>${d.status}</b></li>`;
+      }).join('');
+
+      let percentage = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
+
+      document.getElementById('results').innerHTML = `
+        <h2 class="text-xl font-bold">${data[0].name} (${data[0].roll_number})</h2>
+        <p class="text-lg my-2">Overall Attendance: <b>${percentage}%</b> (${present}/${total} Days)</p>
+        <ul class="border-t pt-2 space-y-1">${logs || 'No records logged yet.'}</ul>
+      `;
+    }
+  </script>
+</body>
+</html>
