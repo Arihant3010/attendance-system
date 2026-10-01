@@ -8,8 +8,10 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// SSL Configuration added for Render / Cloud Postgres Database
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgrespassword@localhost:5432/attendance_db'
+    connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgrespassword@localhost:5432/attendance_db',
+    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
 });
 
 app.get('/api/students', async (req, res) => {
