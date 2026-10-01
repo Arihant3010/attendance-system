@@ -8,7 +8,7 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// SSL Configuration added for Render / Cloud Postgres Database
+// PostgreSQL Pool with SSL Configuration for Render/Cloud Postgres
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgrespassword@localhost:5432/attendance_db',
     ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
@@ -107,7 +107,6 @@ app.get('/api/student-dashboard/:roll_number', async (req, res) => {
     }
 });
 
-// FIXED FACULTY STATS (Unique Low Attendance Student Count)
 app.get('/api/faculty-stats', async (req, res) => {
     const { division } = req.query;
     try {
@@ -119,7 +118,6 @@ app.get('/api/faculty-stats', async (req, res) => {
         }
         const totalStudents = await pool.query(totalQuery, totalParams);
 
-        // Fetch students overall percentage (Filtered by division)
         let lowAttQuery = `
             SELECT st.id, st.roll_number, st.name, st.division, 
                    ROUND((COUNT(CASE WHEN att.status = 'Present' THEN 1 END)::decimal / NULLIF(COUNT(att.id), 0)) * 100, 1) as percentage
