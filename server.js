@@ -1,5 +1,5 @@
 const express = require('express');
-const { Pool } = require('pg');
+const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
 const app = express();
@@ -8,147 +8,187 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PostgreSQL Pool with SSL Configuration for Render/Cloud Postgres
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgres://postgres:postgrespassword@localhost:5432/attendance_db',
-    ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+// SQLite Local File Database Setup
+const db = new sqlite3.Database('./attendance.db', (err) => {
+    if (err) {
+        console.error('Error opening database:', err.message);
+    } else {
+        console.log('Connected to local SQLite database (attendance.db)');
+    }
 });
 
+// Helper function for DB Queries (Async/Await support)
+const queryAll = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve(rows);
+        });
+    });
+};
+
+const queryGet = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+        });
+    });
+};
+
+const queryRun = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.run(sql, params, function (err) {
+            if (err) reject(err);
+            else resolve(this);
+        });
+    });
+};
+
+// 1. Get All Students
 app.get('/api/students', async (req, res) => {
     const { division } = req.query;
     try {
-        let query = 'SELECT * FROM students';
+        let sql = 'SELECT * FROM students';
         let params = [];
         if (division && division !== 'ALL') {
-            query += ' WHERE division = $1';
+            sql += ' WHERE division = ?';
             params.push(division);
         }
-        query += ' ORDER BY roll_number ASC';
-        const result = await pool.query(query, params);
-        res.json(result.rows);
+        sql += ' ORDER BY roll_number ASC';
+        const rows = await queryAll(sql, params);
+        res.json(rows);
     } catch (err) {
+        console.error('Error fetching students:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// 2. Get All Subjects
 app.get('/api/subjects', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM subjects ORDER BY id ASC');
-        res.json(result.rows);
+        const rows = await queryAll('SELECT * FROM subjects ORDER BY id ASC');
+        res.json(rows);
     } catch (err) {
+        console.error('Error fetching subjects:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// 3. Mark / Update Attendance
 app.post('/api/attendance', async (req, res) => {
     const { student_id, subject_id, date, status } = req.body;
     try {
-        await pool.query(`
+        await queryRun(`
             INSERT INTO attendance (student_id, subject_id, date, status)
-            VALUES ($1, $2, $3, $4)
-            ON CONFLICT (student_id, subject_id, date)
-            DO UPDATE SET status = EXCLUDED.status
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(student_id, subject_id, date)
+            DO UPDATE SET status = excluded.status
         `, [student_id, subject_id, date, status]);
-        
+
         res.json({ message: 'Attendance updated successfully' });
     } catch (err) {
+        console.error('Error updating attendance:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// 4. Student Portal Dashboard
 app.get('/api/student-dashboard/:roll_number', async (req, res) => {
     const { roll_number } = req.params;
     const { date } = req.query;
 
     try {
-        const studentRes = await pool.query('SELECT * FROM students WHERE UPPER(roll_number) = UPPER($1)', [roll_number]);
-        if (studentRes.rows.length === 0) {
+        const student = await queryGet('SELECT * FROM students WHERE UPPER(roll_number) = UPPER(?)', [roll_number]);
+        if (!student) {
             return res.status(404).json({ error: 'Student not found' });
         }
-        const student = studentRes.rows[0];
 
-        const statsRes = await pool.query(`
-            SELECT 
+        const subjectsStats = await queryAll(`
+            SELECT
                 sub.id as subject_id,
                 sub.name as subject_name,
                 sub.code,
                 COUNT(att.id) as total_classes,
                 COUNT(CASE WHEN att.status = 'Present' THEN 1 END) as present_count
             FROM subjects sub
-            LEFT JOIN attendance att ON att.subject_id = sub.id AND att.student_id = $1
+            LEFT JOIN attendance att ON att.subject_id = sub.id AND att.student_id = ?
             GROUP BY sub.id, sub.name, sub.code
             ORDER BY sub.id ASC
         `, [student.id]);
 
-        let dateLogQuery = `
+        let dateLogSql = `
             SELECT att.date, sub.name as subject_name, att.status
             FROM attendance att
             JOIN subjects sub ON att.subject_id = sub.id
-            WHERE att.student_id = $1
+            WHERE att.student_id = ?
         `;
         let params = [student.id];
 
         if (date) {
-            dateLogQuery += ` AND att.date = $2`;
+            dateLogSql += ` AND att.date = ?`;
             params.push(date);
         }
 
-        dateLogQuery += ` ORDER BY att.date DESC, sub.id ASC`;
+        dateLogSql += ` ORDER BY att.date DESC, sub.id ASC`;
 
-        const logsRes = await pool.query(dateLogQuery, params);
+        const historyLogs = await queryAll(dateLogSql, params);
 
         res.json({
             student,
-            subjectsStats: statsRes.rows,
-            historyLogs: logsRes.rows
+            subjectsStats,
+            historyLogs
         });
     } catch (err) {
+        console.error('Error fetching student dashboard:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
+// 5. Faculty Panel Stats
 app.get('/api/faculty-stats', async (req, res) => {
     const { division } = req.query;
     try {
-        let totalQuery = 'SELECT COUNT(*) FROM students';
+        let totalSql = 'SELECT COUNT(*) as count FROM students';
         let totalParams = [];
         if (division && division !== 'ALL') {
-            totalQuery += ' WHERE division = $1';
+            totalSql += ' WHERE division = ?';
             totalParams.push(division);
         }
-        const totalStudents = await pool.query(totalQuery, totalParams);
+        const totalRes = await queryGet(totalSql, totalParams);
 
-        let lowAttQuery = `
-            SELECT st.id, st.roll_number, st.name, st.division, 
-                   ROUND((COUNT(CASE WHEN att.status = 'Present' THEN 1 END)::decimal / NULLIF(COUNT(att.id), 0)) * 100, 1) as percentage
+        let lowAttSql = `
+            SELECT st.id, st.roll_number, st.name, st.division,
+                   ROUND((CAST(COUNT(CASE WHEN att.status = 'Present' THEN 1 END) AS FLOAT) / NULLIF(COUNT(att.id), 0)) * 100, 1) as percentage
             FROM students st
             JOIN attendance att ON att.student_id = st.id
         `;
         let lowParams = [];
 
         if (division && division !== 'ALL') {
-            lowAttQuery += ` WHERE st.division = $1`;
+            lowAttSql += ` WHERE st.division = ?`;
             lowParams.push(division);
         }
 
-        lowAttQuery += `
+        lowAttSql += `
             GROUP BY st.id, st.roll_number, st.name, st.division
-            HAVING (COUNT(CASE WHEN att.status = 'Present' THEN 1 END)::decimal / NULLIF(COUNT(att.id), 0)) * 100 < 75
+            HAVING (CAST(COUNT(CASE WHEN att.status = 'Present' THEN 1 END) AS FLOAT) / NULLIF(COUNT(att.id), 0)) * 100 < 75
             ORDER BY st.division ASC, percentage ASC
         `;
 
-        const lowAttendance = await pool.query(lowAttQuery, lowParams);
+        const lowAttendanceStudents = await queryAll(lowAttSql, lowParams);
 
         res.json({
-            totalStudents: parseInt(totalStudents.rows[0].count || 0),
-            uniqueLowCount: lowAttendance.rows.length,
-            lowAttendanceStudents: lowAttendance.rows
+            totalStudents: totalRes ? totalRes.count : 0,
+            uniqueLowCount: lowAttendanceStudents.length,
+            lowAttendanceStudents
         });
     } catch (err) {
+        console.error('Error fetching faculty stats:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
 app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
+    console.log(`Server running locally on http://localhost:${port}`);
 });
