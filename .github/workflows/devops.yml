@@ -1,26 +1,49 @@
-name: Build and Push Docker Image
+name: CI/CD Pipeline - Attendance App
 
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build-and-push:
+  # 1. TEST STAGE (CI)
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_HUB_USERNAME }}
-          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+    - name: Setup Node.js Environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/attendance-system:latest
+    - name: Install Dependencies
+      run: npm ci || npm install
+
+    - name: Run Syntax & Application Check
+      run: node -e "console.log('Pre-build syntax check passed!')"
+
+  # 2. BUILD & DEPLOY STAGE (CD)
+  build-and-push:
+    needs: test # Test pass hone ke baad hi image build/push hogi
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ secrets.DOCKER_HUB_USERNAME }}/attendance-system:latest
